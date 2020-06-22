@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <declare-styleable name="DateSelectorET">
+        <attr name="android:hint" />
+        <attr name="android:text" />
+        <attr name="dateFormat" format="enum">
+            <enum name="yyyymmdd" value="0" />
+            <enum name="yyyyddmm" value="1" />
+            <enum name="mmddyyyy" value="2" />
+            <enum name="mmyyyydd" value="3" />
+            <enum name="ddyyyymm" value="4" />
+            <enum name="ddmmyyyy" value="5" />
+        </attr>
+    </declare-styleable>
+
+</resources>
