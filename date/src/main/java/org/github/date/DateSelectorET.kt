@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.DatePickerDialog
 import android.content.Context
 import android.text.Editable
+import android.text.TextUtils
 import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -150,11 +151,16 @@ class DateSelectorET : FrameLayout, View.OnTouchListener, DatePickerDialog.OnDat
         val calendar = getCalendarInstance()
         calendar.set(year, month, dayOfMonth)
         val charSequence = formatDate(calendar)
-        mEditText?.setText(charSequence)
+        this.text = charSequence
     }
 
     private fun getCalendarInstance(): Calendar {
-        return Calendar.getInstance()
+        val calendar = Calendar.getInstance()
+        mContentText?.let {
+            if (!TextUtils.isEmpty(mContentText))
+                calendar.timeInMillis = getTimeInMillis()
+        }
+        return calendar
     }
 
     /**
@@ -163,12 +169,37 @@ class DateSelectorET : FrameLayout, View.OnTouchListener, DatePickerDialog.OnDat
     private fun formatDate(calendar: Calendar): String {
         var date = ""
         try {
-            val pattern = dateFormats[mDateFormatValue]
+            val pattern = getCurrentDatePattern()
             date = SimpleDateFormat(pattern, Locale.getDefault()).format(calendar.time)
         } catch (e: Exception) {
             e.printStackTrace()
         }
         return date
+    }
+
+    /**
+     * Get timeInMillis from readable text
+     * */
+    private fun getTimeInMillis(): Long {
+        try {
+            mContentText?.let {
+                if (!TextUtils.isEmpty(mContentText)) {
+                    val pattern = getCurrentDatePattern()
+                    val date: Date? = SimpleDateFormat(pattern, Locale.getDefault()).parse(it)
+                    return date?.time ?: System.currentTimeMillis()
+                }
+            }
+            return System.currentTimeMillis()
+        } catch (e: Exception) {
+            return System.currentTimeMillis()
+        }
+    }
+
+    /**
+     * Get current date pattern
+     * */
+    private fun getCurrentDatePattern(): String {
+        return dateFormats[mDateFormatValue]
     }
 
     /**
