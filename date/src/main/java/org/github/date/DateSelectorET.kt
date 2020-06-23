@@ -33,11 +33,25 @@ class DateSelectorET : FrameLayout, View.OnTouchListener, DatePickerDialog.OnDat
         "dd-MM-yyyy"
     )
 
+    /**
+     * Date patterns
+     * */
+    private val PATTERN = arrayListOf(
+        "^[0-9]{4}-(3[01]|[12][0-9]|0[1-9])-(1[0-2]|0[1-9])\$",
+        "^[0-9]{4}-(1[0-2]|0[1-9])-(3[01]|[12][0-9]|0[1-9])\$",
+        "^(1[0-2]|0[1-9])-(3[01]|[12][0-9]|0[1-9])-[0-9]{4}\$",
+        "^(1[0-2]|0[1-9])-[0-9]{4}-(3[01]|[12][0-9]|0[1-9])\$",
+        "^(3[01]|[12][0-9]|0[1-9])-[0-9]{4}-(1[0-2]|0[1-9])\$",
+        "^(3[01]|[12][0-9]|0[1-9])-(1[0-2]|0[1-9])-[0-9]{4}\$"
+    )
+
     private var mTextLayout: TextInputLayout? = null
     private var mEditText: TextInputEditText? = null
 
     private var mHintText: String? = ""
-    private var mContentText: String? = null
+    private var mContentText: String? = ""
+    private var mMinDate: String? = ""
+    private var mMaxDate: String? = ""
 
     /**
      * Date Format
@@ -72,6 +86,8 @@ class DateSelectorET : FrameLayout, View.OnTouchListener, DatePickerDialog.OnDat
                 )
                 mHintText = typedArray.getString(R.styleable.DateSelectorET_android_hint)
                 mContentText = typedArray.getString(R.styleable.DateSelectorET_android_text)
+                mMinDate = typedArray.getString(R.styleable.DateSelectorET_minDate)
+                mMaxDate = typedArray.getString(R.styleable.DateSelectorET_maxDate)
             } finally {
                 typedArray.recycle()
             }
@@ -121,8 +137,19 @@ class DateSelectorET : FrameLayout, View.OnTouchListener, DatePickerDialog.OnDat
 
     private fun initProps() {
         mEditText?.isFocusable = false
-        hint = mHintText
-        text = mContentText
+        this.hint = mHintText
+        mContentText?.let {
+            if (!TextUtils.isEmpty(it))
+                this.text = it
+        }
+        mMinDate?.let {
+            if (!TextUtils.isEmpty(it))
+                this.minDate = it
+        }
+        mMaxDate?.let {
+            if (!TextUtils.isEmpty(it))
+                this.maxDate = it
+        }
         if (!isInEditMode) initEvent()
     }
 
@@ -144,23 +171,45 @@ class DateSelectorET : FrameLayout, View.OnTouchListener, DatePickerDialog.OnDat
             calendar[Calendar.DAY_OF_MONTH]
         )
         datePicker.setCancelable(false)
-        datePicker.show()
+        setMinMaxDate(datePicker).show()
+    }
+
+    private fun setMinMaxDate(datePicker: DatePickerDialog): DatePickerDialog {
+        mMinDate?.let {
+            if (!TextUtils.isEmpty(it))
+                datePicker.datePicker.minDate = getTimeInMillis(it)
+        }
+        mMaxDate?.let {
+            if (!TextUtils.isEmpty(it))
+                datePicker.datePicker.maxDate = getTimeInMillis(it)
+        }
+        return datePicker
     }
 
     override fun onDateSet(view: DatePicker?, year: Int, month: Int, dayOfMonth: Int) {
         val calendar = getCalendarInstance()
         calendar.set(year, month, dayOfMonth)
-        val charSequence = formatDate(calendar)
-        this.text = charSequence
+        this.text = formatDate(calendar)
     }
 
     private fun getCalendarInstance(): Calendar {
         val calendar = Calendar.getInstance()
-        mContentText?.let {
-            if (!TextUtils.isEmpty(mContentText))
-                calendar.timeInMillis = getTimeInMillis()
+        text?.let {
+            if (!TextUtils.isEmpty(it))
+                calendar.timeInMillis = getTimeInMillis(it)
         }
         return calendar
+    }
+
+    private fun isValidDate(date: String): Boolean {
+        val matcher = DateMatcher()
+        if (!matcher.matches(date, PATTERN[mDateFormatValue]))
+            throw Exception("Invalid date format supplied")
+        return true
+    }
+
+    interface Matcher {
+        fun matches(date: String, PATTERN: String): Boolean
     }
 
     /**
@@ -180,16 +229,13 @@ class DateSelectorET : FrameLayout, View.OnTouchListener, DatePickerDialog.OnDat
     /**
      * Get timeInMillis from readable text
      * */
-    private fun getTimeInMillis(): Long {
+    private fun getTimeInMillis(text: String): Long {
         try {
-            mContentText?.let {
-                if (!TextUtils.isEmpty(mContentText)) {
-                    val pattern = getCurrentDatePattern()
-                    val date: Date? = SimpleDateFormat(pattern, Locale.getDefault()).parse(it)
-                    return date?.time ?: System.currentTimeMillis()
-                }
-            }
-            return System.currentTimeMillis()
+            if (TextUtils.isEmpty(text))
+                return System.currentTimeMillis()
+            val pattern = getCurrentDatePattern()
+            val date: Date? = SimpleDateFormat(pattern, Locale.getDefault()).parse(text)
+            return date?.time ?: System.currentTimeMillis()
         } catch (e: Exception) {
             return System.currentTimeMillis()
         }
@@ -208,10 +254,9 @@ class DateSelectorET : FrameLayout, View.OnTouchListener, DatePickerDialog.OnDat
      * */
     var hint: String?
         set(value) {
-            mHintText = value ?: ""
-            mEditText?.hint = mHintText
+            mEditText?.hint = value ?: ""
         }
-        get() = mHintText
+        get() = mEditText?.hint?.toString() ?: ""
 
     /**
      * Getter and setter for
@@ -219,10 +264,36 @@ class DateSelectorET : FrameLayout, View.OnTouchListener, DatePickerDialog.OnDat
      * */
     var text: String?
         set(value) {
-            mContentText = value ?: ""
+            val contentText = value ?: ""
+            if (!isValidDate(contentText))
+                return
             val editable = Editable.Factory()
-            mEditText?.text = editable.newEditable(mContentText)
+            mEditText?.text = editable.newEditable(contentText)
         }
-        get() = mContentText
+        get() = mEditText?.text?.toString() ?: ""
+
+    /**
+     * Setter for
+     * minDate
+     * which sets a minimum date for calendar in specified ]date range
+     * */
+    var minDate: String = ""
+        set(value) {
+            if (!isValidDate(value))
+                return
+            this.mMinDate = value
+        }
+
+    /**
+     * Setter for
+     * maxDate
+     * which sets a maximum date for calendar in specified ]date range
+     * */
+    var maxDate: String = ""
+        set(value) {
+            if (!isValidDate(value))
+                return
+            this.mMaxDate = value
+        }
 
 }

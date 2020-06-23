@@ -4,6 +4,8 @@
     <declare-styleable name="DateSelectorET">
         <attr name="android:hint" />
         <attr name="android:text" />
+        <attr name="minDate" format="string" />
+        <attr name="maxDate" format="string" />
         <attr name="dateFormat" format="enum">
             <enum name="yyyymmdd" value="0" />
             <enum name="yyyyddmm" value="1" />
